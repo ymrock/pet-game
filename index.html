@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#e8590c">
+  <title>食べ歩きリスト</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon.svg">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="app-header">
+    <h1>🍜 食べ歩きリスト</h1>
+    <button id="menuBtn" class="icon-btn" type="button" aria-label="メニュー">⋯</button>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button type="button" role="tab" data-tab="want" aria-selected="true">行きたい <span class="count" id="countWant">0</span></button>
+    <button type="button" role="tab" data-tab="visited" aria-selected="false">行った <span class="count" id="countVisited">0</span></button>
+    <button type="button" role="tab" data-tab="all" aria-selected="false">すべて <span class="count" id="countAll">0</span></button>
+  </nav>
+
+  <div class="toolbar">
+    <input type="search" id="search" placeholder="店名・エリア・メモで検索" aria-label="検索">
+    <div class="toolbar-row">
+      <select id="genreFilter" aria-label="ジャンルで絞り込み">
+        <option value="">すべてのジャンル</option>
+      </select>
+      <select id="sort" aria-label="並び替え">
+        <option value="created">登録が新しい順</option>
+        <option value="priority">行きたい度順</option>
+        <option value="rating">評価が高い順</option>
+        <option value="lastVisit">最近行った順</option>
+        <option value="name">店名順</option>
+      </select>
+    </div>
+  </div>
+
+  <main id="list" class="list" aria-live="polite"></main>
+  <p id="empty" class="empty" hidden></p>
+
+  <button id="addBtn" class="fab" type="button" aria-label="お店を追加">＋</button>
+  <div id="toast" class="toast" role="status" hidden></div>
+
+  <!-- お店の追加・編集 -->
+  <dialog id="shopDialog">
+    <form id="shopForm" novalidate>
+      <h2 id="shopDialogTitle">お店を追加</h2>
+      <label><span>店名 <span class="req">*</span></span>
+        <input name="name" autocomplete="off" required>
+      </label>
+      <label>ジャンル
+        <input name="genre" list="genreList" autocomplete="off" placeholder="ラーメン、カフェ、焼肉 など">
+      </label>
+      <datalist id="genreList"></datalist>
+      <label>エリア・住所
+        <input name="area" autocomplete="off" placeholder="渋谷、梅田 など">
+      </label>
+      <label>URL（食べログ・Instagram など）
+        <input name="url" inputmode="url" autocomplete="off" placeholder="https://">
+      </label>
+      <div class="field">
+        <span class="field-label">行きたい度</span>
+        <div class="stars-input" data-name="priority"></div>
+      </div>
+      <label>メモ
+        <textarea name="memo" rows="3" placeholder="気になるメニュー、営業時間、誰に聞いたか など"></textarea>
+      </label>
+      <div class="dialog-actions">
+        <button type="button" class="danger" id="deleteShopBtn">削除</button>
+        <span class="spacer"></span>
+        <button type="button" data-close>キャンセル</button>
+        <button type="submit" class="primary">保存</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- 行った記録の追加・編集 -->
+  <dialog id="visitDialog">
+    <form id="visitForm" novalidate>
+      <h2 id="visitDialogTitle">行った記録</h2>
+      <p class="dialog-sub" id="visitShopName"></p>
+      <label><span>行った日 <span class="req">*</span></span>
+        <input name="date" type="date" required>
+      </label>
+      <div class="field">
+        <span class="field-label">評価</span>
+        <div class="stars-input" data-name="rating"></div>
+      </div>
+      <div class="field-row">
+        <label>金額（円）
+          <input name="price" type="number" inputmode="numeric" min="0" step="1" placeholder="1500">
+        </label>
+        <label>一緒に行った人
+          <input name="companions" autocomplete="off" placeholder="ひとり、友達 など">
+        </label>
+      </div>
+      <label>食べたもの
+        <input name="dishes" autocomplete="off" placeholder="味噌ラーメン、餃子">
+      </label>
+      <label>感想
+        <textarea name="comment" rows="3" placeholder="味、雰囲気、待ち時間 など"></textarea>
+      </label>
+      <label class="check">
+        <input name="again" type="checkbox"> また行きたい！
+      </label>
+      <div class="dialog-actions">
+        <span class="spacer"></span>
+        <button type="button" data-close>キャンセル</button>
+        <button type="submit" class="primary">保存</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- お店の詳細 -->
+  <dialog id="detailDialog">
+    <div id="detailBody"></div>
+    <div class="dialog-actions">
+      <button type="button" id="detailEditBtn">編集</button>
+      <span class="spacer"></span>
+      <button type="button" data-close>閉じる</button>
+      <button type="button" class="primary" id="detailVisitBtn">＋ 行った記録</button>
+    </div>
+  </dialog>
+
+  <!-- メニュー -->
+  <dialog id="menuDialog">
+    <h2>メニュー</h2>
+    <div class="menu-list">
+      <button type="button" id="exportJsonBtn">バックアップを保存（JSON）</button>
+      <button type="button" id="importJsonBtn">バックアップから復元（JSON）</button>
+      <button type="button" id="exportCsvBtn">表計算用に書き出し（CSV）</button>
+    </div>
+    <p class="note">データはこの端末のブラウザ内に保存されます。機種変更やブラウザのデータ削除の前にバックアップを保存してください。</p>
+    <input type="file" id="importFile" accept="application/json,.json" hidden>
+    <div class="dialog-actions">
+      <span class="spacer"></span>
+      <button type="button" data-close>閉じる</button>
+    </div>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>

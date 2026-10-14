@@ -1,0 +1,14 @@
+{
+  "name": "食べ歩きリスト",
+  "short_name": "食べ歩き",
+  "description": "行きたいお店を登録して、行ったら日付や評価を記録するアプリ",
+  "lang": "ja",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#faf7f2",
+  "theme_color": "#e8590c",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
