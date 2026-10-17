@@ -1,0 +1,970 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+</head>
+<body>
+<title>食べ歩き帖</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&family=Zen+Maru+Gothic:wght@700&display=swap">
+<style>
+/* Layout: 一列のカード帳。行ったお店には朱色の「済」印が押される。上部にタブ、右下に追加ボタン */
+:root {
+  --paper: #f2f3f7;
+  --surface: #ffffff;
+  --ink: #1d2233;
+  --ink-soft: #626a82;
+  --line: #dcdfe8;
+  --indigo: #2c3e74;
+  --indigo-soft: #e3e8f5;
+  --stamp: #c8402b;
+  --star: #e0a100;
+  --star-off: #d3d7e2;
+  --scrim: rgba(18, 22, 36, .5);
+  --font-display: "Zen Maru Gothic", "Hiragino Maru Gothic ProN", "Hiragino Sans", system-ui, sans-serif;
+  --font-body: "Zen Kaku Gothic New", "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+  --radius: 12px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #12141c; --surface: #1b1e29; --ink: #e8e9f0; --ink-soft: #9aa1b8; --line: #2e3242;
+    --indigo: #9fb2ee; --indigo-soft: #26304d; --stamp: #ff6b55; --star: #f2b72c; --star-off: #3a3f52;
+    --scrim: rgba(0, 0, 0, .6); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #12141c; --surface: #1b1e29; --ink: #e8e9f0; --ink-soft: #9aa1b8; --line: #2e3242;
+  --indigo: #9fb2ee; --indigo-soft: #26304d; --stamp: #ff6b55; --star: #f2b72c; --star-off: #3a3f52;
+  --scrim: rgba(0, 0, 0, .6); color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.6;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 0 112px;
+}
+.wrap { max-width: 680px; margin: 0 auto; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--indigo); outline-offset: 2px; }
+
+.btn {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  color: var(--ink);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.btn:hover { border-color: var(--ink-soft); }
+.btn.primary { background: var(--indigo); border-color: var(--indigo); color: var(--surface); font-weight: 700; }
+.btn.danger { color: var(--stamp); border-color: transparent; background: transparent; }
+.btn.lg { font-size: 15px; padding: 9px 18px; }
+
+input, select, textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 10px;
+  padding: 10px 12px;
+  min-width: 0;
+}
+textarea { resize: vertical; }
+
+/* ヘッダー */
+.masthead { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-block: 20px 6px; }
+.masthead h1 { font-family: var(--font-display); font-size: 26px; letter-spacing: .04em; margin: 0; line-height: 1.2; }
+.masthead .tally { margin: 2px 0 0; color: var(--ink-soft); font-size: 13px; font-variant-numeric: tabular-nums; }
+.icon-btn { border: 1px solid var(--line); background: var(--surface); border-radius: 50%; width: 40px; height: 40px; font-size: 18px; line-height: 1; color: var(--ink); flex: none; }
+
+.tabs {
+  position: sticky;
+  top: env(safe-area-inset-top, 0px);
+  z-index: 2;
+  display: flex;
+  gap: 4px;
+  background: var(--paper);
+  border-bottom: 1px solid var(--line);
+  margin-top: 10px;
+}
+.tabs button {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 10px 4px 8px;
+  color: var(--ink-soft);
+  font-weight: 700;
+  border-bottom: 3px solid transparent;
+  font-variant-numeric: tabular-nums;
+}
+.tabs button[aria-selected="true"] { color: var(--indigo); border-bottom-color: var(--indigo); }
+.tabs .n { font-size: 12px; font-weight: 500; margin-left: 2px; }
+
+.toolbar { display: grid; gap: 8px; padding-block: 12px 4px; }
+.toolbar-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+/* カード */
+.list { display: grid; gap: 10px; padding-block: 8px; }
+.card {
+  display: grid;
+  grid-template-columns: 52px 1fr;
+  gap: 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px;
+}
+.mark {
+  width: 52px; height: 52px;
+  border-radius: 50%;
+  border: 2px dashed var(--line);
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
+  padding: 0;
+}
+.mark:hover { border-color: var(--stamp); color: var(--stamp); border-style: solid; }
+.card.visited .mark {
+  border: 3px double var(--stamp);
+  color: var(--stamp);
+  font-family: var(--font-display);
+  font-size: 22px;
+  transform: rotate(-12deg);
+}
+.card-body { min-width: 0; }
+.card-main { cursor: pointer; }
+.card-title { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 8px; }
+.card-title h3 { margin: 0; font-size: 17px; font-weight: 700; overflow-wrap: anywhere; text-wrap: balance; }
+.chip { font-size: 11px; font-weight: 700; letter-spacing: .04em; padding: 1px 8px; border-radius: 999px; background: var(--indigo-soft); color: var(--indigo); white-space: nowrap; }
+.chip.again { background: transparent; border: 1px solid var(--stamp); color: var(--stamp); }
+.meta { color: var(--ink-soft); font-size: 13px; margin-top: 2px; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.preview { margin: 6px 0 0; font-size: 14px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.card-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.stars { color: var(--star); letter-spacing: 1px; white-space: nowrap; }
+.stars .off { color: var(--star-off); }
+
+.empty { text-align: center; color: var(--ink-soft); padding: 40px 12px; }
+.empty h2 { font-family: var(--font-display); color: var(--ink); font-size: 18px; margin: 0 0 12px; }
+.howto { display: inline-grid; gap: 8px; text-align: left; margin: 0 auto; padding: 0; list-style: none; counter-reset: s; }
+.howto li { counter-increment: s; display: flex; gap: 10px; align-items: baseline; }
+.howto li::before { content: counter(s); flex: none; width: 22px; height: 22px; border-radius: 50%; background: var(--indigo-soft); color: var(--indigo); font-size: 12px; font-weight: 700; display: grid; place-items: center; }
+
+.fab {
+  position: fixed;
+  right: max(calc(20px + env(safe-area-inset-right, 0px)), calc(50% - 320px));
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  height: 56px;
+  padding: 0 22px;
+  border-radius: 999px;
+  border: none;
+  background: var(--indigo);
+  color: var(--surface);
+  font-weight: 700;
+  font-size: 15px;
+  box-shadow: 0 6px 18px rgba(28, 40, 80, .3);
+  z-index: 3;
+}
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(92px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(100% - 32px);
+  background: var(--ink);
+  color: var(--paper);
+  padding: 10px 18px;
+  border-radius: 999px;
+  font-size: 14px;
+  z-index: 10;
+}
+
+/* ダイアログ */
+dialog {
+  border: none;
+  border-radius: 16px;
+  padding: 20px;
+  width: min(560px, calc(100% - 24px));
+  max-height: calc(100% - 24px);
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, .25);
+}
+dialog::backdrop { background: var(--scrim); }
+dialog h2 { font-family: var(--font-display); margin: 0 0 12px; font-size: 19px; text-wrap: balance; }
+dialog form { display: grid; gap: 12px; }
+dialog label, .field { display: grid; gap: 4px; font-size: 13px; color: var(--ink-soft); font-weight: 500; }
+dialog label > input, dialog label > textarea { color: var(--ink); font-size: 15px; font-weight: 400; }
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+label.check { display: flex; align-items: center; gap: 8px; color: var(--ink); font-size: 15px; }
+label.check input { width: 20px; height: 20px; accent-color: var(--stamp); }
+.req { color: var(--stamp); }
+.dialog-sub { margin: -8px 0 0; font-weight: 700; }
+.dialog-actions { display: flex; gap: 8px; align-items: center; margin-top: 8px; flex-wrap: wrap; }
+.spacer { flex: 1; }
+.note { color: var(--ink-soft); font-size: 13px; }
+.menu-list { display: grid; gap: 8px; }
+.menu-list .btn { justify-content: flex-start; border-radius: 10px; padding: 12px 14px; font-size: 14px; }
+.where { font-size: 13px; background: var(--paper); border-radius: 10px; padding: 10px 12px; margin: 0 0 12px; }
+
+.stars-input { display: flex; align-items: center; gap: 2px; flex-wrap: wrap; }
+.stars-input button { border: none; background: transparent; padding: 0 2px; font-size: 32px; line-height: 1.1; color: var(--star-off); }
+.stars-input button.on { color: var(--star); }
+.stars-input .clear { font-size: 12px; color: var(--ink-soft); margin-left: 8px; padding: 4px 8px; }
+.stars-input .val { font-size: 13px; color: var(--ink-soft); margin-left: 4px; font-variant-numeric: tabular-nums; }
+
+.detail-info { display: grid; gap: 4px; margin: 4px 0 12px; font-size: 14px; }
+.detail-info a { color: var(--indigo); overflow-wrap: anywhere; }
+.detail-memo { white-space: pre-wrap; background: var(--paper); border-radius: 10px; padding: 10px 12px; margin: 0 0 16px; overflow-wrap: anywhere; font-size: 14px; }
+.summary { display: flex; gap: 6px 18px; flex-wrap: wrap; font-size: 13px; color: var(--ink-soft); margin-bottom: 10px; font-variant-numeric: tabular-nums; }
+.summary b { color: var(--ink); font-size: 15px; }
+.visit-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+.visit { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+.visit-head { display: flex; align-items: center; gap: 6px 10px; flex-wrap: wrap; }
+.visit-head .date { font-weight: 700; font-variant-numeric: tabular-nums; }
+.visit-btns { display: flex; gap: 4px; margin-left: auto; }
+.visit-btns .btn { padding: 3px 10px; font-size: 12px; }
+.visit p { margin: 4px 0 0; font-size: 14px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.visit .label { color: var(--ink-soft); margin-right: 6px; font-size: 12px; }
+
+@media (max-width: 420px) {
+  .field-row { grid-template-columns: 1fr; }
+  dialog { padding: 16px; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .card.visited .mark { transition: transform .2s; }
+}
+</style>
+
+<div class="wrap">
+  <header class="masthead">
+    <div>
+      <h1>食べ歩き帖</h1>
+      <p class="tally" id="tally">読み込み中…</p>
+    </div>
+    <button id="menuBtn" class="icon-btn" type="button" aria-label="メニュー">⋯</button>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button type="button" role="tab" data-tab="want" aria-selected="true">行きたい<span class="n" id="countWant"></span></button>
+    <button type="button" role="tab" data-tab="visited" aria-selected="false">行った<span class="n" id="countVisited"></span></button>
+    <button type="button" role="tab" data-tab="all" aria-selected="false">すべて<span class="n" id="countAll"></span></button>
+  </nav>
+
+  <div class="toolbar">
+    <input type="search" id="search" placeholder="店名・エリア・メモ・感想で検索" aria-label="検索">
+    <div class="toolbar-row">
+      <select id="genreFilter" aria-label="ジャンルで絞り込み"><option value="">すべてのジャンル</option></select>
+      <select id="sort" aria-label="並び替え">
+        <option value="created">登録が新しい順</option>
+        <option value="priority">行きたい度順</option>
+        <option value="rating">評価が高い順</option>
+        <option value="lastVisit">最近行った順</option>
+        <option value="name">店名順</option>
+      </select>
+    </div>
+  </div>
+
+  <main id="list" class="list" aria-live="polite"></main>
+  <div id="empty" class="empty">
+    <h2>リストを読み込んでいます</h2>
+  </div>
+</div>
+
+<button id="addBtn" class="fab" type="button">＋ お店を追加</button>
+<div id="toast" class="toast" role="status" hidden></div>
+
+<dialog id="shopDialog">
+  <form id="shopForm" novalidate>
+    <h2 id="shopDialogTitle">お店を追加</h2>
+    <label><span>店名 <span class="req">*</span></span><input id="f-name" name="name" autocomplete="off" required></label>
+    <label>ジャンル<input id="f-genre" name="genre" list="genreList" autocomplete="off" placeholder="ラーメン、カフェ、焼肉 など"></label>
+    <datalist id="genreList"></datalist>
+    <label>エリア・住所<input id="f-area" name="area" autocomplete="off" placeholder="渋谷、梅田 など"></label>
+    <label>URL（食べログ・Instagram など）<input id="f-url" name="url" inputmode="url" autocomplete="off" placeholder="https://"></label>
+    <div class="field"><span>行きたい度</span><div class="stars-input" data-name="priority"></div></div>
+    <label>メモ<textarea id="f-memo" name="memo" rows="3" placeholder="気になるメニュー、定休日、誰に聞いたか など"></textarea></label>
+    <div class="dialog-actions">
+      <button type="button" class="btn danger" id="deleteShopBtn">削除</button>
+      <span class="spacer"></span>
+      <button type="button" class="btn lg" data-close>キャンセル</button>
+      <button type="submit" class="btn lg primary">保存</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="visitDialog">
+  <form id="visitForm" novalidate>
+    <h2 id="visitDialogTitle">行った！</h2>
+    <p class="dialog-sub" id="visitShopName"></p>
+    <label><span>行った日 <span class="req">*</span></span><input id="v-date" name="date" type="date" required></label>
+    <div class="field"><span>評価</span><div class="stars-input" data-name="rating"></div></div>
+    <div class="field-row">
+      <label>金額（円）<input id="v-price" name="price" type="number" inputmode="numeric" min="0" step="1" placeholder="1500"></label>
+      <label>一緒に行った人<input id="v-companions" name="companions" autocomplete="off" placeholder="ひとり、友達 など"></label>
+    </div>
+    <label>食べたもの<input id="v-dishes" name="dishes" autocomplete="off" placeholder="味噌ラーメン、餃子"></label>
+    <label>感想<textarea id="v-comment" name="comment" rows="3" placeholder="味、雰囲気、待ち時間 など"></textarea></label>
+    <label class="check"><input id="v-again" name="again" type="checkbox"> また行きたい！</label>
+    <div class="dialog-actions">
+      <span class="spacer"></span>
+      <button type="button" class="btn lg" data-close>キャンセル</button>
+      <button type="submit" class="btn lg primary">記録する</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="detailDialog">
+  <div id="detailBody"></div>
+  <div class="dialog-actions">
+    <button type="button" class="btn lg" id="detailEditBtn">編集</button>
+    <span class="spacer"></span>
+    <button type="button" class="btn lg" data-close>閉じる</button>
+    <button type="button" class="btn lg primary" id="detailVisitBtn">＋ 行った記録</button>
+  </div>
+</dialog>
+
+<dialog id="confirmDialog">
+  <form method="dialog">
+    <h2 id="confirmTitle">確認</h2>
+    <p id="confirmText" class="note" style="white-space: pre-line; margin: 0"></p>
+    <div class="dialog-actions">
+      <span class="spacer"></span>
+      <button class="btn lg" value="cancel">やめる</button>
+      <button class="btn lg primary" value="ok" id="confirmOk">OK</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="menuDialog">
+  <h2>メニュー</h2>
+  <p class="where" id="whereText"></p>
+  <div class="menu-list">
+    <button type="button" class="btn" id="exportJsonBtn">バックアップを保存（JSON）</button>
+    <button type="button" class="btn" id="importJsonBtn">バックアップから復元（JSON）</button>
+    <button type="button" class="btn" id="exportCsvBtn">表計算用に書き出し（CSV）</button>
+  </div>
+  <input type="file" id="importFile" accept="application/json,.json" hidden>
+  <div class="dialog-actions">
+    <span class="spacer"></span>
+    <button type="button" class="btn lg" data-close>閉じる</button>
+  </div>
+</dialog>
+
+<script>
+'use strict';
+
+// ---------- データ ----------
+// shop: { id, name, genre, area, url, memo, priority(0-5), createdAt,
+//         visits: [{ id, date, rating(0-5), price, companions, dishes, comment, again }] }
+
+const LOCAL_KEY = 'tabearuki-list-v1';
+const state = { tab: 'want', query: '', genre: '', sort: 'created' };
+const store = { mode: 'loading', db: null }; // mode: loading | cloud | local
+let data = { shops: [] };
+
+const str = (v) => (v == null ? '' : String(v)).trim();
+const clampStar = (v) => Math.max(0, Math.min(5, Math.round(Number(v) || 0)));
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+
+function normalizeShop(s) {
+  if (!s || !str(s.name)) return null;
+  return {
+    id: /^[A-Za-z0-9_-]{1,64}$/.test(str(s.id)) ? str(s.id) : uid(),
+    name: str(s.name),
+    genre: str(s.genre),
+    area: str(s.area),
+    url: str(s.url),
+    memo: str(s.memo),
+    priority: clampStar(s.priority),
+    createdAt: Number(s.createdAt) || Date.now(),
+    visits: Array.isArray(s.visits) ? s.visits.map(normalizeVisit).filter(Boolean) : [],
+  };
+}
+
+function normalizeVisit(v) {
+  if (!v || !/^\d{4}-\d{2}-\d{2}$/.test(str(v.date))) return null;
+  const price = v.price === '' || v.price == null ? null : Number(v.price);
+  return {
+    id: str(v.id) || uid(),
+    date: str(v.date),
+    rating: clampStar(v.rating),
+    price: Number.isFinite(price) && price >= 0 ? Math.round(price) : null,
+    companions: str(v.companions),
+    dishes: str(v.dishes),
+    comment: str(v.comment),
+    again: Boolean(v.again),
+  };
+}
+
+function today() {
+  const d = new Date();
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().slice(0, 10);
+}
+
+const findShop = (id) => data.shops.find((s) => s.id === id);
+const isVisited = (shop) => shop.visits.length > 0;
+const sortedVisits = (shop) => [...shop.visits].sort((a, b) => b.date.localeCompare(a.date));
+const lastVisit = (shop) => (shop.visits.length ? sortedVisits(shop)[0] : null);
+function avgRating(shop) {
+  const rated = shop.visits.filter((v) => v.rating > 0);
+  return rated.length ? rated.reduce((sum, v) => sum + v.rating, 0) / rated.length : 0;
+}
+
+// ---------- 保存先：claude.ai（所有者）またはこの端末 ----------
+const use = (name) =>
+  window.claude && typeof window.claude.use === 'function'
+    ? Promise.resolve(window.claude.use(name)).catch(() => null)
+    : Promise.resolve(null);
+
+function loadLocal() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(LOCAL_KEY) || 'null');
+    if (parsed && Array.isArray(parsed.shops)) return parsed.shops.map(normalizeShop).filter(Boolean);
+  } catch (e) { /* 使えない環境では空で始める */ }
+  return [];
+}
+
+function saveLocal() {
+  try { localStorage.setItem(LOCAL_KEY, JSON.stringify({ version: 1, shops: data.shops })); }
+  catch (e) { toast('この端末に保存できませんでした。バックアップを取ってください'); }
+}
+
+async function initStore() {
+  const [db, user] = await Promise.all([use('db'), use('user')]);
+  const owner = user ? await user.isOwner() : false;
+  if (db && owner) {
+    store.mode = 'cloud';
+    store.db = db;
+    db.collection('shops').onSnapshot(
+      (snap) => {
+        data.shops = snap.docs.map((d) => normalizeShop({ ...d.data(), id: d.id })).filter(Boolean);
+        render();
+        refreshDetail();
+      },
+      () => toast('同期が止まりました。ページを開き直してください'),
+    );
+  } else {
+    store.mode = 'local';
+    data.shops = loadLocal();
+    render();
+  }
+}
+
+async function cloudCall(fn) {
+  try {
+    await fn();
+  } catch (e) {
+    if (e && e.code === 'unavailable') {
+      await new Promise((r) => setTimeout(r, 600 + Math.random() * 800));
+      try { await fn(); return true; } catch (e2) { e = e2; }
+    }
+    if (e && e.code === 'quota_exceeded') toast('保存容量がいっぱいです。不要なお店を削除してください');
+    else toast('保存できませんでした。通信状況を確認してもう一度お試しください');
+    return false;
+  }
+  return true;
+}
+
+function persistShop(shop) {
+  if (store.mode === 'cloud') return cloudCall(() => store.db.collection('shops').doc(shop.id).set({ ...shop }));
+  saveLocal();
+  return Promise.resolve(true);
+}
+
+function removeShop(id) {
+  if (store.mode === 'cloud') return cloudCall(() => store.db.collection('shops').doc(id).delete());
+  saveLocal();
+  return Promise.resolve(true);
+}
+
+// ---------- 表示ユーティリティ ----------
+const $ = (sel) => document.querySelector(sel);
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const fmtDate = (d) => d.replaceAll('-', '/');
+const fmtYen = (n) => `${n.toLocaleString('ja-JP')}円`;
+
+function starsHtml(value, label) {
+  const full = Math.round(value);
+  return `<span class="stars" aria-label="${esc(label)} ${value ? value.toFixed(1) : '未評価'}">` +
+    '★'.repeat(full) + `<span class="off">${'★'.repeat(5 - full)}</span></span>`;
+}
+
+function safeUrl(url) {
+  if (!url) return '';
+  const withScheme = /^[a-z][a-z0-9+.-]*:/i.test(url) ? url : `https://${url}`;
+  try {
+    const u = new URL(withScheme);
+    return u.protocol === 'http:' || u.protocol === 'https:' ? u.href : '';
+  } catch { return ''; }
+}
+
+const mapUrl = (shop) =>
+  `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([shop.name, shop.area].filter(Boolean).join(' '))}`;
+
+let toastTimer;
+function toast(msg) {
+  const el = $('#toast');
+  el.textContent = msg;
+  el.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.hidden = true; }, 2600);
+}
+
+const confirmDialog = $('#confirmDialog');
+function askConfirm(title, text, okLabel) {
+  $('#confirmTitle').textContent = title;
+  $('#confirmText').textContent = text;
+  $('#confirmOk').textContent = okLabel;
+  confirmDialog.returnValue = '';
+  confirmDialog.showModal();
+  return new Promise((resolve) => {
+    confirmDialog.addEventListener('close', () => resolve(confirmDialog.returnValue === 'ok'), { once: true });
+  });
+}
+
+// ---------- 一覧 ----------
+const sorters = {
+  created: (a, b) => b.createdAt - a.createdAt,
+  priority: (a, b) => b.priority - a.priority || b.createdAt - a.createdAt,
+  rating: (a, b) => avgRating(b) - avgRating(a) || b.priority - a.priority,
+  lastVisit: (a, b) => (lastVisit(b)?.date || '').localeCompare(lastVisit(a)?.date || '') || b.createdAt - a.createdAt,
+  name: (a, b) => a.name.localeCompare(b.name, 'ja'),
+};
+
+function matchesQuery(shop, q) {
+  if (!q) return true;
+  const hay = [shop.name, shop.genre, shop.area, shop.memo,
+    ...shop.visits.flatMap((v) => [v.dishes, v.comment, v.companions])].join('\n').toLowerCase();
+  return q.toLowerCase().split(/\s+/).every((word) => hay.includes(word));
+}
+
+function render() {
+  if (store.mode === 'loading') return;
+  const visitedCount = data.shops.filter(isVisited).length;
+  const wantCount = data.shops.length - visitedCount;
+  $('#countWant').textContent = wantCount;
+  $('#countVisited').textContent = visitedCount;
+  $('#countAll').textContent = data.shops.length;
+  $('#tally').textContent = data.shops.length
+    ? `行きたい ${wantCount}軒 · 行った ${visitedCount}軒`
+    : '行きたいお店を集めて、行ったら記録する帳面';
+
+  renderGenres();
+
+  const items = data.shops
+    .filter((s) => state.tab === 'all' || (state.tab === 'visited') === isVisited(s))
+    .filter((s) => !state.genre || s.genre === state.genre)
+    .filter((s) => matchesQuery(s, state.query))
+    .sort(sorters[state.sort] || sorters.created);
+
+  $('#list').innerHTML = items.map(cardHtml).join('');
+
+  const empty = $('#empty');
+  empty.hidden = items.length > 0;
+  if (items.length) return;
+  if (!data.shops.length) {
+    empty.innerHTML = `<h2>まずは行きたいお店をひとつ</h2>
+      <ol class="howto">
+        <li>右下の「＋ お店を追加」から店名やエリアを登録</li>
+        <li>行ったら、お店の左の「行った？」をタップ</li>
+        <li>日付・評価・食べたもの・感想を記録すると「済」の印がつきます</li>
+      </ol>`;
+  } else if (state.query || state.genre) {
+    empty.innerHTML = '<h2>条件に合うお店がありません</h2><p>検索語やジャンルを変えてみてください</p>';
+  } else if (state.tab === 'visited') {
+    empty.innerHTML = '<h2>まだ行ったお店はありません</h2><p>「行きたい」のお店の「行った？」をタップして記録しましょう</p>';
+  } else {
+    empty.innerHTML = '<h2>行きたいお店は全部制覇！</h2><p>新しいお店を「＋ お店を追加」から登録しましょう</p>';
+  }
+}
+
+function renderGenres() {
+  const genres = [...new Set(data.shops.map((s) => s.genre).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ja'));
+  if (state.genre && !genres.includes(state.genre)) state.genre = '';
+  $('#genreFilter').innerHTML = '<option value="">すべてのジャンル</option>' +
+    genres.map((g) => `<option value="${esc(g)}"${g === state.genre ? ' selected' : ''}>${esc(g)}</option>`).join('');
+  $('#genreList').innerHTML = genres.map((g) => `<option value="${esc(g)}"></option>`).join('');
+}
+
+function cardHtml(shop) {
+  const visited = isVisited(shop);
+  const last = lastVisit(shop);
+  const avg = avgRating(shop);
+  const url = safeUrl(shop.url);
+  let summary = '';
+  let preview = '';
+  if (visited) {
+    summary = `${starsHtml(avg, '評価')} ${avg ? avg.toFixed(1) : '未評価'} · ${fmtDate(last.date)} · ${shop.visits.length}回`;
+    const withText = sortedVisits(shop).find((v) => v.comment || v.dishes);
+    if (withText) preview = withText.comment || `食べたもの：${withText.dishes}`;
+  } else {
+    if (shop.priority) summary = `行きたい度 ${starsHtml(shop.priority, '行きたい度')}`;
+    preview = shop.memo;
+  }
+  return `
+  <article class="card${visited ? ' visited' : ''}" data-id="${esc(shop.id)}">
+    <button type="button" class="mark" data-action="visit"
+      aria-label="${visited ? 'また行った記録を追加' : '行ったとして記録'}">${visited ? '済' : '行った？'}</button>
+    <div class="card-body">
+      <div class="card-main" data-action="detail">
+        <div class="card-title">
+          <h3>${esc(shop.name)}</h3>
+          ${shop.genre ? `<span class="chip">${esc(shop.genre)}</span>` : ''}
+          ${last?.again ? '<span class="chip again">また行きたい</span>' : ''}
+        </div>
+        ${shop.area ? `<div class="meta">${esc(shop.area)}</div>` : ''}
+        ${summary ? `<div class="meta">${summary}</div>` : ''}
+        ${preview ? `<p class="preview">${esc(preview)}</p>` : ''}
+      </div>
+      <div class="card-actions">
+        <button type="button" class="btn${visited ? '' : ' primary'}" data-action="visit">${visited ? '＋ また行った' : '✓ 行った！'}</button>
+        <a class="btn" href="${esc(mapUrl(shop))}" target="_blank" rel="noopener">地図</a>
+        ${url ? `<a class="btn" href="${esc(url)}" target="_blank" rel="noopener">リンク</a>` : ''}
+        <button type="button" class="btn" data-action="edit">編集</button>
+      </div>
+    </div>
+  </article>`;
+}
+
+// ---------- 星入力 ----------
+const STAR_WORDS = ['未評価', 'いまいち', 'ふつう', 'よかった', 'とてもよかった', '最高！'];
+function setupStarsInput(container) {
+  container.innerHTML = [1, 2, 3, 4, 5]
+    .map((n) => `<button type="button" data-star="${n}" aria-label="${n}つ星">★</button>`).join('') +
+    '<span class="val"></span><button type="button" class="clear" data-star="0">クリア</button>';
+  container.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-star]');
+    if (btn) setStars(container, Number(btn.dataset.star));
+  });
+}
+function setStars(container, value) {
+  container.dataset.value = value;
+  container.querySelectorAll('[data-star]').forEach((b) => {
+    const n = Number(b.dataset.star);
+    if (n > 0) { b.classList.toggle('on', n <= value); b.setAttribute('aria-pressed', String(n <= value)); }
+  });
+  if (container.dataset.name === 'rating') container.querySelector('.val').textContent = STAR_WORDS[value];
+}
+const getStars = (container) => Number(container.dataset.value) || 0;
+
+// ---------- お店ダイアログ ----------
+const shopDialog = $('#shopDialog');
+const shopForm = $('#shopForm');
+const priorityInput = shopForm.querySelector('[data-name="priority"]');
+let editingShopId = null;
+
+function openShopDialog(shopId = null) {
+  editingShopId = shopId;
+  const shop = shopId ? findShop(shopId) : null;
+  shopForm.reset();
+  $('#shopDialogTitle').textContent = shop ? 'お店を編集' : 'お店を追加';
+  $('#deleteShopBtn').hidden = !shop;
+  for (const key of ['name', 'genre', 'area', 'url', 'memo']) shopForm.elements[key].value = shop ? shop[key] : '';
+  setStars(priorityInput, shop ? shop.priority : 3);
+  shopDialog.showModal();
+  if (!shop) shopForm.elements.name.focus();
+}
+
+shopForm.addEventListener('submit', (e) => {
+  e.preventDefault();
+  const f = shopForm.elements;
+  const name = str(f.name.value);
+  if (!name) { f.name.focus(); toast('店名を入力してください'); return; }
+  const fields = {
+    name,
+    genre: str(f.genre.value),
+    area: str(f.area.value),
+    url: str(f.url.value),
+    memo: str(f.memo.value),
+    priority: getStars(priorityInput),
+  };
+  const isEdit = Boolean(editingShopId);
+  let shop = editingShopId && findShop(editingShopId);
+  if (shop) {
+    Object.assign(shop, fields);
+  } else {
+    shop = { id: uid(), createdAt: Date.now(), visits: [], ...fields };
+    data.shops.push(shop);
+  }
+  shopDialog.close();
+  render();
+  refreshDetail();
+  persistShop(shop).then((ok) => ok && toast(isEdit ? '保存しました' : `「${name}」を追加しました`));
+});
+
+$('#deleteShopBtn').addEventListener('click', async () => {
+  const shop = findShop(editingShopId);
+  if (!shop) return;
+  const ok = await askConfirm('お店を削除', `「${shop.name}」を削除します。\n行った記録もすべて消えます。`, '削除する');
+  if (!ok) return;
+  data.shops = data.shops.filter((s) => s.id !== shop.id);
+  shopDialog.close();
+  detailDialog.close();
+  render();
+  if (await removeShop(shop.id)) toast('削除しました');
+});
+
+// ---------- 行った記録ダイアログ ----------
+const visitDialog = $('#visitDialog');
+const visitForm = $('#visitForm');
+const ratingInput = visitForm.querySelector('[data-name="rating"]');
+let visitTarget = { shopId: null, visitId: null };
+
+function openVisitDialog(shopId, visitId = null) {
+  const shop = findShop(shopId);
+  if (!shop) return;
+  const visit = visitId ? shop.visits.find((v) => v.id === visitId) : null;
+  visitTarget = { shopId, visitId: visit ? visit.id : null };
+  visitForm.reset();
+  $('#visitDialogTitle').textContent = visit ? '記録を編集' : (isVisited(shop) ? 'また行った！' : '行った！');
+  $('#visitShopName').textContent = shop.name;
+  const f = visitForm.elements;
+  f.date.value = visit ? visit.date : today();
+  f.price.value = visit && visit.price != null ? visit.price : '';
+  f.companions.value = visit ? visit.companions : '';
+  f.dishes.value = visit ? visit.dishes : '';
+  f.comment.value = visit ? visit.comment : '';
+  f.again.checked = visit ? visit.again : false;
+  setStars(ratingInput, visit ? visit.rating : 0);
+  visitDialog.showModal();
+}
+
+visitForm.addEventListener('submit', (e) => {
+  e.preventDefault();
+  const shop = findShop(visitTarget.shopId);
+  if (!shop) return;
+  const f = visitForm.elements;
+  const visit = normalizeVisit({
+    id: visitTarget.visitId,
+    date: f.date.value,
+    rating: getStars(ratingInput),
+    price: f.price.value,
+    companions: f.companions.value,
+    dishes: f.dishes.value,
+    comment: f.comment.value,
+    again: f.again.checked,
+  });
+  if (!visit) { f.date.focus(); toast('行った日を入力してください'); return; }
+  const wasVisited = isVisited(shop);
+  const idx = shop.visits.findIndex((v) => v.id === visit.id);
+  if (idx >= 0) shop.visits[idx] = visit; else shop.visits.push(visit);
+  visitDialog.close();
+  render();
+  refreshDetail();
+  persistShop(shop).then((ok) => ok && toast(wasVisited ? '記録を保存しました' : `「${shop.name}」に済の印を押しました`));
+});
+
+// ---------- 詳細ダイアログ ----------
+const detailDialog = $('#detailDialog');
+let detailShopId = null;
+
+function openDetail(shopId) {
+  detailShopId = shopId;
+  detailDialog.showModal();
+  refreshDetail();
+}
+
+function refreshDetail() {
+  if (!detailDialog.open) return;
+  const shop = findShop(detailShopId);
+  if (!shop) { detailDialog.close(); return; }
+  const url = safeUrl(shop.url);
+  const visits = sortedVisits(shop);
+  const avg = avgRating(shop);
+  const prices = visits.map((v) => v.price).filter((p) => p != null);
+
+  const info = [];
+  if (shop.genre) info.push(`<div><span class="chip">${esc(shop.genre)}</span></div>`);
+  info.push(`<div>${shop.area ? `${esc(shop.area)} · ` : ''}<a href="${esc(mapUrl(shop))}" target="_blank" rel="noopener">Googleマップで見る</a></div>`);
+  if (url) info.push(`<div><a href="${esc(url)}" target="_blank" rel="noopener">${esc(shop.url)}</a></div>`);
+  if (shop.priority) info.push(`<div>行きたい度 ${starsHtml(shop.priority, '行きたい度')}</div>`);
+
+  const visitsHtml = visits.length
+    ? `<div class="summary">
+         <span>訪問 <b>${visits.length}</b>回</span>
+         <span>平均評価 <b>${avg ? avg.toFixed(1) : '—'}</b></span>
+         ${prices.length ? `<span>平均金額 <b>${fmtYen(Math.round(prices.reduce((a, b) => a + b, 0) / prices.length))}</b></span>` : ''}
+       </div>
+       <ul class="visit-list">${visits.map((v) => `
+         <li class="visit" data-visit-id="${esc(v.id)}">
+           <div class="visit-head">
+             <span class="date">${fmtDate(v.date)}</span>
+             ${v.rating ? starsHtml(v.rating, '評価') : '<span class="meta">未評価</span>'}
+             ${v.again ? '<span class="chip again">また行きたい</span>' : ''}
+             <span class="visit-btns">
+               <button type="button" class="btn" data-visit-action="edit">編集</button>
+               <button type="button" class="btn danger" data-visit-action="delete">削除</button>
+             </span>
+           </div>
+           ${v.price != null ? `<p><span class="label">金額</span>${fmtYen(v.price)}</p>` : ''}
+           ${v.companions ? `<p><span class="label">一緒に</span>${esc(v.companions)}</p>` : ''}
+           ${v.dishes ? `<p><span class="label">食べたもの</span>${esc(v.dishes)}</p>` : ''}
+           ${v.comment ? `<p>${esc(v.comment)}</p>` : ''}
+         </li>`).join('')}
+       </ul>`
+    : '<p class="note">まだ行っていません。行ったら「＋ 行った記録」から記録しましょう。</p>';
+
+  $('#detailBody').innerHTML = `
+    <h2>${esc(shop.name)}</h2>
+    <div class="detail-info">${info.join('')}</div>
+    ${shop.memo ? `<p class="detail-memo">${esc(shop.memo)}</p>` : ''}
+    <h2>行った記録</h2>
+    ${visitsHtml}`;
+}
+
+$('#detailBody').addEventListener('click', async (e) => {
+  const btn = e.target.closest('[data-visit-action]');
+  if (!btn) return;
+  const shop = findShop(detailShopId);
+  const visitId = btn.closest('[data-visit-id]').dataset.visitId;
+  if (btn.dataset.visitAction === 'edit') { openVisitDialog(shop.id, visitId); return; }
+  const visit = shop.visits.find((v) => v.id === visitId);
+  if (!await askConfirm('記録を削除', `${fmtDate(visit.date)} の記録を削除します。`, '削除する')) return;
+  shop.visits = shop.visits.filter((v) => v.id !== visitId);
+  render();
+  refreshDetail();
+  if (await persistShop(shop)) toast(isVisited(shop) ? '記録を削除しました' : '記録を削除し、「行きたい」に戻しました');
+});
+
+$('#detailEditBtn').addEventListener('click', () => openShopDialog(detailShopId));
+$('#detailVisitBtn').addEventListener('click', () => openVisitDialog(detailShopId));
+
+// ---------- バックアップ ----------
+async function offerFile(filename, content, type) {
+  if (!window.claude) {
+    // claude.ai の外で開いたとき（ローカル確認用）
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([content], { type }));
+    a.download = filename;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    return;
+  }
+  const downloads = await use('downloads');
+  if (!downloads) { toast('この画面ではファイルを保存できません'); return; }
+  try {
+    await downloads.save({ filename, data: content });
+    toast('保存しました');
+  } catch (e) {
+    if (e && e.code === 'declined') return;
+    toast(e && e.code === 'rate_limited' ? '少し待ってからもう一度お試しください' : 'ファイルを保存できませんでした');
+  }
+}
+
+$('#exportJsonBtn').addEventListener('click', () => {
+  offerFile(`tabearuki-${today()}.json`, JSON.stringify({ version: 1, shops: data.shops }, null, 2), 'application/json');
+});
+
+$('#exportCsvBtn').addEventListener('click', () => {
+  const header = ['店名', 'ジャンル', 'エリア', 'URL', '行きたい度', 'メモ', '行った日', '評価', '金額', '一緒に行った人', '食べたもの', '感想', 'また行きたい'];
+  const rows = [];
+  for (const s of data.shops) {
+    const base = [s.name, s.genre, s.area, s.url, s.priority || '', s.memo];
+    if (!s.visits.length) rows.push([...base, '', '', '', '', '', '', '']);
+    for (const v of sortedVisits(s)) {
+      rows.push([...base, v.date, v.rating || '', v.price ?? '', v.companions, v.dishes, v.comment, v.again ? '○' : '']);
+    }
+  }
+  const cell = (c) => `"${String(c).replaceAll('"', '""')}"`;
+  const csv = [header, ...rows].map((r) => r.map(cell).join(',')).join('\r\n');
+  offerFile(`tabearuki-${today()}.csv`, '﻿' + csv, 'text/csv');
+});
+
+$('#importJsonBtn').addEventListener('click', () => $('#importFile').click());
+
+$('#importFile').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+  let shops;
+  try {
+    const parsed = JSON.parse(await file.text());
+    if (!parsed || !Array.isArray(parsed.shops)) throw new Error();
+    shops = parsed.shops.map(normalizeShop).filter(Boolean);
+  } catch {
+    toast('読み込めませんでした。このアプリで保存したJSONファイルを選んでください');
+    return;
+  }
+  $('#menuDialog').close();
+  const ok = await askConfirm('バックアップから復元',
+    `${shops.length}軒のお店を読み込みます。\nいまのリスト（${data.shops.length}軒）は置き換えられます。`, '置き換える');
+  if (!ok) return;
+  const oldIds = data.shops.map((s) => s.id);
+  data.shops = shops;
+  render();
+  if (store.mode === 'cloud') {
+    toast('復元しています…');
+    const keep = new Set(shops.map((s) => s.id));
+    for (const id of oldIds.filter((id) => !keep.has(id))) await removeShop(id);
+    for (const s of shops) if (!await persistShop(s)) return;
+  } else {
+    saveLocal();
+  }
+  toast('復元しました');
+});
+
+// ---------- イベント ----------
+$('#list').addEventListener('click', (e) => {
+  const actionEl = e.target.closest('[data-action]');
+  if (!actionEl) return;
+  const id = actionEl.closest('[data-id]').dataset.id;
+  const action = actionEl.dataset.action;
+  if (action === 'visit') openVisitDialog(id);
+  else if (action === 'edit') openShopDialog(id);
+  else if (action === 'detail') openDetail(id);
+});
+
+document.querySelectorAll('.tabs [data-tab]').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    state.tab = btn.dataset.tab;
+    document.querySelectorAll('.tabs [data-tab]').forEach((b) => b.setAttribute('aria-selected', String(b === btn)));
+    render();
+  });
+});
+
+$('#search').addEventListener('input', (e) => { state.query = e.target.value.trim(); render(); });
+$('#genreFilter').addEventListener('change', (e) => { state.genre = e.target.value; render(); });
+$('#sort').addEventListener('change', (e) => { state.sort = e.target.value; render(); });
+$('#addBtn').addEventListener('click', () => openShopDialog());
+$('#menuBtn').addEventListener('click', () => {
+  $('#whereText').textContent = store.mode === 'cloud'
+    ? '保存先：claude.ai（あなた専用）。スマホでもパソコンでも、このページを開けば同じリストが見られます。'
+    : '保存先：この端末のブラウザ内。ブラウザのデータを消すと失われるので、ときどきバックアップを保存してください。';
+  $('#menuDialog').showModal();
+});
+
+document.querySelectorAll('dialog').forEach((dialog) => {
+  dialog.addEventListener('click', (e) => {
+    if (e.target !== dialog) return;
+    const r = dialog.getBoundingClientRect();
+    if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) dialog.close();
+  });
+  dialog.querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', () => dialog.close()));
+});
+
+setupStarsInput(priorityInput);
+setupStarsInput(ratingInput);
+initStore();
+</script>
+
+</body>
+</html>

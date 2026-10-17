@@ -1,0 +1,855 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+</head>
+<body>
+<title>全国踏破帖</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&family=Zen+Maru+Gothic:wght@700&display=swap">
+<style>
+/* Layout: 47都道府県のタイル地図が主役。左上の海に経県値、地図の下に凡例と地方別の進み具合 */
+:root {
+  --paper: #eff3ef;
+  --surface: #ffffff;
+  --ink: #1c2620;
+  --ink-soft: #5d6b62;
+  --line: #d5ddd7;
+  --accent: #2f6b3c;
+  --accent-soft: #e1ede3;
+  --tile0: #ffffff;
+  --lv1: #e2eccd; --lv2: #bcd994; --lv3: #86be5f; --lv4: #3f9640; --lv5: #1d6431;
+  --on-lv1: #1c2620; --on-lv2: #1c2620; --on-lv3: #1c2620; --on-lv4: #ffffff; --on-lv5: #ffffff;
+  --star: #d99a00;
+  --star-off: #d3dad5;
+  --danger: #b8402e;
+  --scrim: rgba(16, 26, 20, .5);
+  --font-display: "Zen Maru Gothic", "Hiragino Maru Gothic ProN", "Hiragino Sans", system-ui, sans-serif;
+  --font-body: "Zen Kaku Gothic New", "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #111613; --surface: #1a211d; --ink: #e6ece7; --ink-soft: #98a69d; --line: #2d3832;
+    --accent: #8fd09a; --accent-soft: #233328; --tile0: #1a211d;
+    --lv1: #2b3a28; --lv2: #3e5c32; --lv3: #5a8c40; --lv4: #82bd5c; --lv5: #bde68f;
+    --on-lv1: #e6ece7; --on-lv2: #e6ece7; --on-lv3: #ffffff; --on-lv4: #111613; --on-lv5: #111613;
+    --star: #f0b52a; --star-off: #34413a; --danger: #ff7a66; --scrim: rgba(0, 0, 0, .6); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #111613; --surface: #1a211d; --ink: #e6ece7; --ink-soft: #98a69d; --line: #2d3832;
+  --accent: #8fd09a; --accent-soft: #233328; --tile0: #1a211d;
+  --lv1: #2b3a28; --lv2: #3e5c32; --lv3: #5a8c40; --lv4: #82bd5c; --lv5: #bde68f;
+  --on-lv1: #e6ece7; --on-lv2: #e6ece7; --on-lv3: #ffffff; --on-lv4: #111613; --on-lv5: #111613;
+  --star: #f0b52a; --star-off: #34413a; --danger: #ff7a66; --scrim: rgba(0, 0, 0, .6); color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.6;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 0 40px;
+}
+.wrap { max-width: 680px; margin: 0 auto; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.btn {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  color: var(--ink);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.btn:hover { border-color: var(--ink-soft); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--surface); font-weight: 700; }
+.btn.danger { color: var(--danger); border-color: transparent; background: transparent; }
+.btn.lg { font-size: 15px; padding: 9px 18px; }
+
+input, select, textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 10px;
+  padding: 10px 12px;
+  min-width: 0;
+}
+textarea { resize: vertical; }
+
+.masthead { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-block: 20px 12px; }
+.masthead h1 { font-family: var(--font-display); font-size: 26px; letter-spacing: .04em; margin: 0; line-height: 1.2; }
+.masthead p { margin: 2px 0 0; color: var(--ink-soft); font-size: 13px; }
+.icon-btn { border: 1px solid var(--line); background: var(--surface); border-radius: 50%; width: 40px; height: 40px; font-size: 18px; line-height: 1; color: var(--ink); flex: none; }
+
+/* タイル地図 */
+.map-box { container-type: inline-size; }
+.map {
+  --gap: 3px;
+  --cell: calc((100cqi - 13 * var(--gap)) / 14);
+  display: grid;
+  grid-template-columns: repeat(14, 1fr);
+  grid-auto-rows: var(--cell);
+  gap: var(--gap);
+}
+.tile {
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--tile0);
+  color: var(--ink-soft);
+  font-size: clamp(9px, 2.5cqi, 15px);
+  font-weight: 700;
+  line-height: 1;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.tile:hover { border-color: var(--accent); }
+.map .tile.long { font-size: clamp(7px, 1.75cqi, 11px); letter-spacing: -.04em; }
+.tile[data-lv="1"] { background: var(--lv1); color: var(--on-lv1); border-color: transparent; }
+.tile[data-lv="2"] { background: var(--lv2); color: var(--on-lv2); border-color: transparent; }
+.tile[data-lv="3"] { background: var(--lv3); color: var(--on-lv3); border-color: transparent; }
+.tile[data-lv="4"] { background: var(--lv4); color: var(--on-lv4); border-color: transparent; }
+.tile[data-lv="5"] { background: var(--lv5); color: var(--on-lv5); border-color: transparent; }
+.tile.dim { opacity: .25; }
+
+.score {
+  grid-column: 1 / span 8;
+  grid-row: 1 / span 4;
+  align-self: start;
+  display: grid;
+  gap: 2px;
+}
+.score .label { font-size: clamp(11px, 2.6cqi, 14px); color: var(--ink-soft); font-weight: 700; letter-spacing: .08em; }
+.score .big { font-family: var(--font-display); font-size: clamp(28px, 9cqi, 52px); line-height: 1; font-variant-numeric: tabular-nums; color: var(--accent); }
+.score .big small { font-size: .4em; color: var(--ink-soft); margin-left: 4px; }
+.score .sub { font-size: clamp(12px, 3cqi, 16px); font-variant-numeric: tabular-nums; }
+.score .sub b { font-size: 1.15em; }
+
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 14px 0 4px; font-size: 13px; font-variant-numeric: tabular-nums; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.swatch { width: 14px; height: 14px; border-radius: 4px; border: 1px solid var(--line); background: var(--tile0); flex: none; }
+.swatch[data-lv="1"] { background: var(--lv1); border-color: transparent; }
+.swatch[data-lv="2"] { background: var(--lv2); border-color: transparent; }
+.swatch[data-lv="3"] { background: var(--lv3); border-color: transparent; }
+.swatch[data-lv="4"] { background: var(--lv4); border-color: transparent; }
+.swatch[data-lv="5"] { background: var(--lv5); border-color: transparent; }
+.legend .n { color: var(--ink-soft); }
+
+.hint { color: var(--ink-soft); font-size: 13px; margin: 6px 0 0; }
+
+/* 地方別 */
+.section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 28px 0 10px; }
+.section-head h2 { font-family: var(--font-display); font-size: 19px; margin: 0; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; background: var(--surface); }
+.seg button { border: none; background: transparent; padding: 5px 12px; font-size: 13px; font-weight: 500; color: var(--ink-soft); }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--surface); }
+.regions { display: grid; gap: 14px; }
+.region h3 { display: flex; align-items: baseline; gap: 8px; margin: 0 0 6px; font-size: 15px; }
+.region h3 .n { color: var(--ink-soft); font-size: 13px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.bar { height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; margin-bottom: 8px; }
+.bar i { display: block; height: 100%; background: var(--accent); }
+.prefs { display: flex; flex-wrap: wrap; gap: 6px; }
+.pill {
+  border: 1px solid var(--line);
+  background: var(--tile0);
+  color: var(--ink);
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 13px;
+  font-weight: 500;
+}
+.pill[data-lv="1"] { background: var(--lv1); color: var(--on-lv1); border-color: transparent; }
+.pill[data-lv="2"] { background: var(--lv2); color: var(--on-lv2); border-color: transparent; }
+.pill[data-lv="3"] { background: var(--lv3); color: var(--on-lv3); border-color: transparent; }
+.pill[data-lv="4"] { background: var(--lv4); color: var(--on-lv4); border-color: transparent; }
+.pill[data-lv="5"] { background: var(--lv5); color: var(--on-lv5); border-color: transparent; }
+.done-msg { color: var(--ink-soft); font-size: 13px; margin: 0; }
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(100% - 32px);
+  background: var(--ink);
+  color: var(--paper);
+  padding: 10px 18px;
+  border-radius: 999px;
+  font-size: 14px;
+  z-index: 10;
+}
+
+/* ダイアログ */
+dialog {
+  border: none;
+  border-radius: 16px;
+  padding: 20px;
+  width: min(560px, calc(100% - 24px));
+  max-height: calc(100% - 24px);
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, .25);
+}
+dialog::backdrop { background: var(--scrim); }
+dialog h2 { font-family: var(--font-display); margin: 0 0 12px; font-size: 19px; text-wrap: balance; }
+dialog h3 { font-size: 15px; margin: 18px 0 8px; }
+dialog form { display: grid; gap: 12px; }
+dialog label, .field { display: grid; gap: 4px; font-size: 13px; color: var(--ink-soft); font-weight: 500; }
+dialog label > input, dialog label > textarea, dialog label > select { color: var(--ink); font-size: 15px; font-weight: 400; }
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.dialog-sub { margin: -8px 0 0; font-weight: 700; }
+.dialog-actions { display: flex; gap: 8px; align-items: center; margin-top: 12px; flex-wrap: wrap; }
+.spacer { flex: 1; }
+.note { color: var(--ink-soft); font-size: 13px; }
+.menu-list { display: grid; gap: 8px; }
+.menu-list .btn { justify-content: flex-start; border-radius: 10px; padding: 12px 14px; font-size: 14px; }
+.where { font-size: 13px; background: var(--paper); border-radius: 10px; padding: 10px 12px; margin: 0 0 12px; }
+
+.detail-head { display: flex; align-items: center; gap: 12px; }
+.detail-head .big-tile { width: 64px; height: 56px; border-radius: 10px; display: grid; place-items: center; font-family: var(--font-display); font-size: 18px; flex: none; }
+.detail-head h2 { margin: 0; }
+.detail-head p { margin: 0; color: var(--ink-soft); font-size: 13px; font-variant-numeric: tabular-nums; }
+.levels { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.levels button {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 10px;
+  padding: 8px 4px;
+  font-size: 13px;
+  font-weight: 700;
+  display: grid;
+  gap: 2px;
+  justify-items: center;
+}
+.levels button small { font-weight: 400; color: var(--ink-soft); font-size: 11px; }
+.levels button[aria-pressed="true"] { border: 2px solid var(--accent); background: var(--accent-soft); }
+.levels button:disabled { opacity: .4; cursor: not-allowed; }
+.trip-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+.trip { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+.trip-head { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; }
+.trip-head .date { font-weight: 700; font-variant-numeric: tabular-nums; }
+.kind { font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 999px; }
+.kind[data-lv="1"] { background: var(--lv1); color: var(--on-lv1); }
+.kind[data-lv="2"] { background: var(--lv2); color: var(--on-lv2); }
+.kind[data-lv="3"] { background: var(--lv3); color: var(--on-lv3); }
+.kind[data-lv="4"] { background: var(--lv4); color: var(--on-lv4); }
+.kind[data-lv="5"] { background: var(--lv5); color: var(--on-lv5); }
+.trip-btns { display: flex; gap: 4px; margin-left: auto; }
+.trip-btns .btn { padding: 3px 10px; font-size: 12px; }
+.trip p { margin: 4px 0 0; font-size: 14px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.trip .label { color: var(--ink-soft); margin-right: 6px; font-size: 12px; }
+.stars { color: var(--star); letter-spacing: 1px; white-space: nowrap; }
+.stars .off { color: var(--star-off); }
+
+.stars-input { display: flex; align-items: center; gap: 2px; flex-wrap: wrap; }
+.stars-input button { border: none; background: transparent; padding: 0 2px; font-size: 32px; line-height: 1.1; color: var(--star-off); }
+.stars-input button.on { color: var(--star); }
+.stars-input .clear { font-size: 12px; color: var(--ink-soft); margin-left: 8px; padding: 4px 8px; }
+
+@media (max-width: 420px) {
+  .field-row { grid-template-columns: 1fr; }
+  dialog { padding: 16px; }
+}
+</style>
+
+<div class="wrap">
+  <header class="masthead">
+    <div>
+      <h1>全国踏破帖</h1>
+      <p>行った都道府県を、行った深さで塗り分ける</p>
+    </div>
+    <button id="menuBtn" class="icon-btn" type="button" aria-label="メニュー">⋯</button>
+  </header>
+
+  <div class="map-box">
+    <div class="map" id="map">
+      <div class="score" aria-live="polite">
+        <span class="label">経県値</span>
+        <span class="big"><span id="scoreNum">0</span><small>/ 235</small></span>
+        <span class="sub">制覇 <b id="visitedNum">0</b> / 47</span>
+      </div>
+    </div>
+  </div>
+  <div class="legend" id="legend"></div>
+  <p class="hint" id="hint">読み込み中…</p>
+
+  <div class="section-head">
+    <h2>地方別</h2>
+    <div class="seg" role="group" aria-label="表示する都道府県">
+      <button type="button" data-filter="all" aria-pressed="true">すべて</button>
+      <button type="button" data-filter="unvisited" aria-pressed="false">未踏だけ</button>
+    </div>
+  </div>
+  <div class="regions" id="regions"></div>
+</div>
+
+<div id="toast" class="toast" role="status" hidden></div>
+
+<dialog id="prefDialog">
+  <div id="prefBody"></div>
+  <div class="dialog-actions">
+    <span class="spacer"></span>
+    <button type="button" class="btn lg" data-close>閉じる</button>
+    <button type="button" class="btn lg primary" id="addTripBtn">＋ 旅の記録</button>
+  </div>
+</dialog>
+
+<dialog id="tripDialog">
+  <form id="tripForm" novalidate>
+    <h2 id="tripDialogTitle">旅の記録</h2>
+    <p class="dialog-sub" id="tripPrefName"></p>
+    <div class="field-row">
+      <label>行った日（わからなければ空欄）<input id="t-date" name="date" type="date"></label>
+      <label>どこまで行った？
+        <select id="t-level" name="level">
+          <option value="5">住んだ</option>
+          <option value="4">泊まった</option>
+          <option value="3" selected>遊んだ</option>
+          <option value="2">降り立った</option>
+          <option value="1">通過した</option>
+        </select>
+      </label>
+    </div>
+    <label>行った場所<input id="t-places" name="places" autocomplete="off" placeholder="金沢城、ひがし茶屋街"></label>
+    <label>一緒に行った人<input id="t-companions" name="companions" autocomplete="off" placeholder="家族、ひとり など"></label>
+    <div class="field"><span>楽しさ</span><div class="stars-input" data-name="rating"></div></div>
+    <label>思い出<textarea id="t-comment" name="comment" rows="3" placeholder="食べたもの、景色、ハプニング など"></textarea></label>
+    <div class="dialog-actions">
+      <span class="spacer"></span>
+      <button type="button" class="btn lg" data-close>キャンセル</button>
+      <button type="submit" class="btn lg primary">記録する</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="confirmDialog">
+  <form method="dialog">
+    <h2 id="confirmTitle">確認</h2>
+    <p id="confirmText" class="note" style="white-space: pre-line; margin: 0"></p>
+    <div class="dialog-actions">
+      <span class="spacer"></span>
+      <button class="btn lg" value="cancel">やめる</button>
+      <button class="btn lg primary" value="ok" id="confirmOk">OK</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="menuDialog">
+  <h2>メニュー</h2>
+  <p class="where" id="whereText"></p>
+  <div class="menu-list">
+    <button type="button" class="btn" id="exportJsonBtn">バックアップを保存（JSON）</button>
+    <button type="button" class="btn" id="importJsonBtn">バックアップから復元（JSON）</button>
+    <button type="button" class="btn" id="exportCsvBtn">表計算用に書き出し（CSV）</button>
+  </div>
+  <p class="note">経県値：住んだ 5点・泊まった 4点・遊んだ 3点・降り立った 2点・通過した 1点。47都道府県すべてに住むと235点です。</p>
+  <input type="file" id="importFile" accept="application/json,.json" hidden>
+  <div class="dialog-actions">
+    <span class="spacer"></span>
+    <button type="button" class="btn lg" data-close>閉じる</button>
+  </div>
+</dialog>
+
+<script>
+'use strict';
+
+// ---------- 都道府県（コード, 名前, タイル表記, 地方, 列, 行） ----------
+const PREFS = [
+  ['01', '北海道', '北海道', '北海道', 12, 0], ['02', '青森県', '青森', '東北', 12, 1], ['03', '岩手県', '岩手', '東北', 12, 2],
+  ['04', '宮城県', '宮城', '東北', 12, 3], ['05', '秋田県', '秋田', '東北', 11, 2], ['06', '山形県', '山形', '東北', 11, 3],
+  ['07', '福島県', '福島', '東北', 12, 4], ['08', '茨城県', '茨城', '関東', 13, 6], ['09', '栃木県', '栃木', '関東', 13, 5],
+  ['10', '群馬県', '群馬', '関東', 12, 5], ['11', '埼玉県', '埼玉', '関東', 12, 6], ['12', '千葉県', '千葉', '関東', 13, 7],
+  ['13', '東京都', '東京', '関東', 12, 7], ['14', '神奈川県', '神奈川', '関東', 12, 8], ['15', '新潟県', '新潟', '中部', 11, 4],
+  ['16', '富山県', '富山', '中部', 10, 4], ['17', '石川県', '石川', '中部', 9, 4], ['18', '福井県', '福井', '中部', 9, 5],
+  ['19', '山梨県', '山梨', '中部', 11, 6], ['20', '長野県', '長野', '中部', 11, 5], ['21', '岐阜県', '岐阜', '中部', 10, 5],
+  ['22', '静岡県', '静岡', '中部', 11, 7], ['23', '愛知県', '愛知', '中部', 10, 6], ['24', '三重県', '三重', '近畿', 9, 6],
+  ['25', '滋賀県', '滋賀', '近畿', 8, 6], ['26', '京都府', '京都', '近畿', 8, 5], ['27', '大阪府', '大阪', '近畿', 7, 6],
+  ['28', '兵庫県', '兵庫', '近畿', 7, 5], ['29', '奈良県', '奈良', '近畿', 8, 7], ['30', '和歌山県', '和歌山', '近畿', 7, 7],
+  ['31', '鳥取県', '鳥取', '中国', 6, 5], ['32', '島根県', '島根', '中国', 5, 5], ['33', '岡山県', '岡山', '中国', 6, 6],
+  ['34', '広島県', '広島', '中国', 5, 6], ['35', '山口県', '山口', '中国', 4, 6], ['36', '徳島県', '徳島', '四国', 5, 9],
+  ['37', '香川県', '香川', '四国', 5, 8], ['38', '愛媛県', '愛媛', '四国', 4, 8], ['39', '高知県', '高知', '四国', 4, 9],
+  ['40', '福岡県', '福岡', '九州・沖縄', 3, 6], ['41', '佐賀県', '佐賀', '九州・沖縄', 2, 7], ['42', '長崎県', '長崎', '九州・沖縄', 1, 7],
+  ['43', '熊本県', '熊本', '九州・沖縄', 2, 8], ['44', '大分県', '大分', '九州・沖縄', 3, 7], ['45', '宮崎県', '宮崎', '九州・沖縄', 3, 8],
+  ['46', '鹿児島県', '鹿児島', '九州・沖縄', 2, 9], ['47', '沖縄県', '沖縄', '九州・沖縄', 0, 10],
+].map(([code, name, short, region, col, row]) => ({ code, name, short, region, col, row }));
+const PREF = Object.fromEntries(PREFS.map((p) => [p.code, p]));
+const REGIONS = ['北海道', '東北', '関東', '中部', '近畿', '中国', '四国', '九州・沖縄'];
+const LEVELS = ['未踏', '通過した', '降り立った', '遊んだ', '泊まった', '住んだ'];
+const LEVEL_HINTS = ['まだ行っていない', '乗り物で通っただけ', '駅や空港に降りた', '観光や用事で歩いた', '1泊以上した', '暮らしていた'];
+
+// ---------- データ ----------
+// recs[code] = { base(0-5), memo, trips: [{ id, date, level(1-5), places, companions, rating(0-5), comment }] }
+const LOCAL_KEY = 'touha-v1';
+const store = { mode: 'loading', db: null };
+let recs = {};
+let filter = 'all';
+
+const str = (v) => (v == null ? '' : String(v)).trim();
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, Math.round(Number(v) || 0)));
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+
+function normalizeTrip(t) {
+  if (!t) return null;
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(str(t.date)) ? str(t.date) : '';
+  return {
+    id: str(t.id) || uid(),
+    date,
+    level: clamp(t.level, 1, 5),
+    places: str(t.places),
+    companions: str(t.companions),
+    rating: clamp(t.rating, 0, 5),
+    comment: str(t.comment),
+  };
+}
+
+function normalizeRec(r) {
+  return {
+    base: clamp(r && r.base, 0, 5),
+    memo: str(r && r.memo),
+    trips: Array.isArray(r && r.trips) ? r.trips.map(normalizeTrip).filter(Boolean) : [],
+  };
+}
+
+const rec = (code) => recs[code] || (recs[code] = normalizeRec(null));
+const tripMax = (r) => r.trips.reduce((m, t) => Math.max(m, t.level), 0);
+const levelOf = (code) => (recs[code] ? Math.max(recs[code].base, tripMax(recs[code])) : 0);
+const sortedTrips = (r) => [...r.trips].sort((a, b) => (b.date || '0').localeCompare(a.date || '0'));
+const firstDate = (r) => r.trips.map((t) => t.date).filter(Boolean).sort()[0] || '';
+
+// ---------- 保存先：claude.ai（所有者）またはこの端末 ----------
+const use = (name) =>
+  window.claude && typeof window.claude.use === 'function'
+    ? Promise.resolve(window.claude.use(name)).catch(() => null)
+    : Promise.resolve(null);
+
+function loadLocal() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(LOCAL_KEY) || 'null');
+    if (parsed && parsed.prefs) return fromPlain(parsed.prefs);
+  } catch (e) { /* 使えない環境では空で始める */ }
+  return {};
+}
+
+function saveLocal() {
+  try { localStorage.setItem(LOCAL_KEY, JSON.stringify({ version: 1, prefs: recs })); }
+  catch (e) { toast('この端末に保存できませんでした。バックアップを取ってください'); }
+}
+
+function fromPlain(obj) {
+  const out = {};
+  for (const [code, r] of Object.entries(obj || {})) if (PREF[code]) out[code] = normalizeRec(r);
+  return out;
+}
+
+async function initStore() {
+  const [db, user] = await Promise.all([use('db'), use('user')]);
+  const owner = user ? await user.isOwner() : false;
+  if (db && owner) {
+    store.mode = 'cloud';
+    store.db = db;
+    db.collection('prefs').onSnapshot(
+      (snap) => {
+        const next = {};
+        for (const d of snap.docs) if (PREF[d.id]) next[d.id] = normalizeRec(d.data());
+        recs = next;
+        render();
+        refreshPref();
+      },
+      () => toast('同期が止まりました。ページを開き直してください'),
+    );
+  } else {
+    store.mode = 'local';
+    recs = loadLocal();
+    render();
+  }
+}
+
+async function cloudCall(fn) {
+  try {
+    await fn();
+  } catch (e) {
+    if (e && e.code === 'unavailable') {
+      await new Promise((r) => setTimeout(r, 600 + Math.random() * 800));
+      try { await fn(); return true; } catch (e2) { e = e2; }
+    }
+    toast(e && e.code === 'quota_exceeded' ? '保存容量がいっぱいです' : '保存できませんでした。通信状況を確認してもう一度お試しください');
+    return false;
+  }
+  return true;
+}
+
+function persist(code) {
+  if (store.mode !== 'cloud') { saveLocal(); return Promise.resolve(true); }
+  const r = recs[code];
+  const ref = store.db.collection('prefs').doc(code);
+  const empty = !r || (!r.base && !r.memo && !r.trips.length);
+  return cloudCall(() => (empty ? ref.delete() : ref.set({ ...r })));
+}
+
+// ---------- 表示ユーティリティ ----------
+const $ = (sel) => document.querySelector(sel);
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const fmtDate = (d) => (d ? d.replaceAll('-', '/') : '日付なし');
+const today = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
+
+function starsHtml(value) {
+  return `<span class="stars" aria-label="楽しさ ${value}">${'★'.repeat(value)}<span class="off">${'★'.repeat(5 - value)}</span></span>`;
+}
+
+let toastTimer;
+function toast(msg) {
+  const el = $('#toast');
+  el.textContent = msg;
+  el.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.hidden = true; }, 2600);
+}
+
+const confirmDialog = $('#confirmDialog');
+function askConfirm(title, text, okLabel) {
+  $('#confirmTitle').textContent = title;
+  $('#confirmText').textContent = text;
+  $('#confirmOk').textContent = okLabel;
+  confirmDialog.returnValue = '';
+  confirmDialog.showModal();
+  return new Promise((resolve) => {
+    confirmDialog.addEventListener('close', () => resolve(confirmDialog.returnValue === 'ok'), { once: true });
+  });
+}
+
+// ---------- 地図と集計 ----------
+function buildMap() {
+  const map = $('#map');
+  for (const p of PREFS) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'tile';
+    b.dataset.code = p.code;
+    b.textContent = p.short;
+    if (p.short.length > 2 && p.code !== '01') b.classList.add('long');
+    b.style.gridColumn = p.code === '01' ? `${p.col + 1} / span 2` : String(p.col + 1);
+    b.style.gridRow = String(p.row + 1);
+    map.appendChild(b);
+  }
+}
+
+function render() {
+  if (store.mode === 'loading') return;
+  const counts = [0, 0, 0, 0, 0, 0];
+  let score = 0;
+  for (const p of PREFS) {
+    const lv = levelOf(p.code);
+    counts[lv] += 1;
+    score += lv;
+    const tile = document.querySelector(`.tile[data-code="${p.code}"]`);
+    tile.dataset.lv = lv;
+    tile.setAttribute('aria-label', `${p.name}：${LEVELS[lv]}`);
+    tile.classList.toggle('dim', filter === 'unvisited' && lv > 0);
+  }
+  const visited = 47 - counts[0];
+  $('#scoreNum').textContent = score;
+  $('#visitedNum').textContent = visited;
+  $('#legend').innerHTML = [5, 4, 3, 2, 1, 0]
+    .map((lv) => `<span><i class="swatch" data-lv="${lv}"></i>${LEVELS[lv]} <span class="n">${counts[lv]}</span></span>`).join('');
+  $('#hint').textContent = visited
+    ? `残り ${counts[0]} 都道府県。タイルをタップすると記録できます`
+    : 'タイルをタップして、行ったことのある都道府県を塗っていきましょう';
+
+  $('#regions').innerHTML = REGIONS.map((region) => {
+    const list = PREFS.filter((p) => p.region === region);
+    const done = list.filter((p) => levelOf(p.code) > 0).length;
+    const shown = filter === 'unvisited' ? list.filter((p) => levelOf(p.code) === 0) : list;
+    const pills = shown.length
+      ? `<div class="prefs">${shown.map((p) => `<button type="button" class="pill" data-code="${p.code}" data-lv="${levelOf(p.code)}">${esc(p.name)}</button>`).join('')}</div>`
+      : '<p class="done-msg">すべて行きました</p>';
+    return `<section class="region">
+      <h3>${region}<span class="n">${done} / ${list.length}</span></h3>
+      <div class="bar"><i style="width:${(done / list.length) * 100}%"></i></div>
+      ${pills}
+    </section>`;
+  }).join('');
+}
+
+// ---------- 都道府県の詳細 ----------
+const prefDialog = $('#prefDialog');
+let currentCode = null;
+
+function openPref(code) {
+  currentCode = code;
+  prefDialog.showModal();
+  refreshPref();
+}
+
+function refreshPref() {
+  if (!prefDialog.open) return;
+  const p = PREF[currentCode];
+  const r = recs[currentCode] || normalizeRec(null);
+  const lv = levelOf(currentCode);
+  const tmax = tripMax(r);
+  const trips = sortedTrips(r);
+  const first = firstDate(r);
+  const sub = [p.region, LEVELS[lv]];
+  if (first) sub.push(`初訪問 ${fmtDate(first)}`);
+  if (trips.length) sub.push(`旅 ${trips.length}回`);
+
+  $('#prefBody').innerHTML = `
+    <div class="detail-head">
+      <span class="big-tile tile" data-lv="${lv}">${esc(p.short)}</span>
+      <div><h2>${esc(p.name)}</h2><p>${sub.map(esc).join(' · ')}</p></div>
+    </div>
+    <h3>どこまで行った？</h3>
+    <div class="levels" id="levelBtns">
+      ${[0, 1, 2, 3, 4, 5].map((n) => `
+        <button type="button" data-level="${n}" aria-pressed="${n === lv}" ${n < tmax ? 'disabled' : ''}>
+          ${LEVELS[n]}<small>${LEVEL_HINTS[n]}</small>
+        </button>`).join('')}
+    </div>
+    ${tmax ? `<p class="note">旅の記録に「${LEVELS[tmax]}」があるので、それより低くはできません。</p>` : ''}
+    <h3>旅の記録</h3>
+    ${trips.length ? `<ul class="trip-list">${trips.map((t) => `
+      <li class="trip" data-trip-id="${esc(t.id)}">
+        <div class="trip-head">
+          <span class="date">${fmtDate(t.date)}</span>
+          <span class="kind" data-lv="${t.level}">${LEVELS[t.level]}</span>
+          ${t.rating ? starsHtml(t.rating) : ''}
+          <span class="trip-btns">
+            <button type="button" class="btn" data-trip-action="edit">編集</button>
+            <button type="button" class="btn danger" data-trip-action="delete">削除</button>
+          </span>
+        </div>
+        ${t.places ? `<p><span class="label">行った場所</span>${esc(t.places)}</p>` : ''}
+        ${t.companions ? `<p><span class="label">一緒に</span>${esc(t.companions)}</p>` : ''}
+        ${t.comment ? `<p>${esc(t.comment)}</p>` : ''}
+      </li>`).join('')}</ul>`
+      : '<p class="note">まだ記録はありません。「＋ 旅の記録」から日付や行った場所を残せます。</p>'}
+    <h3>メモ</h3>
+    <label><span class="note">行ってみたい場所、名物 など</span>
+      <textarea id="prefMemo" rows="2">${esc(r.memo)}</textarea>
+    </label>`;
+}
+
+$('#prefBody').addEventListener('click', async (e) => {
+  const lvBtn = e.target.closest('[data-level]');
+  if (lvBtn) {
+    const r = rec(currentCode);
+    const n = Number(lvBtn.dataset.level);
+    if (n === levelOf(currentCode) && n === r.base) return;
+    r.base = n;
+    render();
+    refreshPref();
+    if (await persist(currentCode)) toast(`${PREF[currentCode].name}を「${LEVELS[levelOf(currentCode)]}」にしました`);
+    return;
+  }
+  const tripBtn = e.target.closest('[data-trip-action]');
+  if (!tripBtn) return;
+  const id = tripBtn.closest('[data-trip-id]').dataset.tripId;
+  if (tripBtn.dataset.tripAction === 'edit') { openTrip(currentCode, id); return; }
+  const r = rec(currentCode);
+  const trip = r.trips.find((t) => t.id === id);
+  if (!await askConfirm('記録を削除', `${fmtDate(trip.date)} の記録を削除します。`, '削除する')) return;
+  r.trips = r.trips.filter((t) => t.id !== id);
+  render();
+  refreshPref();
+  if (await persist(currentCode)) toast('記録を削除しました');
+});
+
+$('#prefBody').addEventListener('change', async (e) => {
+  if (e.target.id !== 'prefMemo') return;
+  const r = rec(currentCode);
+  const memo = str(e.target.value);
+  if (memo === r.memo) return;
+  r.memo = memo;
+  if (await persist(currentCode)) toast('メモを保存しました');
+});
+
+$('#addTripBtn').addEventListener('click', () => openTrip(currentCode));
+
+// ---------- 旅の記録 ----------
+const tripDialog = $('#tripDialog');
+const tripForm = $('#tripForm');
+const ratingInput = tripForm.querySelector('[data-name="rating"]');
+let tripTarget = { code: null, id: null };
+
+function setupStarsInput(container) {
+  container.innerHTML = [1, 2, 3, 4, 5]
+    .map((n) => `<button type="button" data-star="${n}" aria-label="${n}つ星">★</button>`).join('') +
+    '<button type="button" class="clear" data-star="0">クリア</button>';
+  container.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-star]');
+    if (btn) setStars(container, Number(btn.dataset.star));
+  });
+}
+function setStars(container, value) {
+  container.dataset.value = value;
+  container.querySelectorAll('[data-star]').forEach((b) => {
+    const n = Number(b.dataset.star);
+    if (n > 0) { b.classList.toggle('on', n <= value); b.setAttribute('aria-pressed', String(n <= value)); }
+  });
+}
+
+function openTrip(code, id = null) {
+  const r = recs[code];
+  const trip = id && r ? r.trips.find((t) => t.id === id) : null;
+  tripTarget = { code, id: trip ? trip.id : null };
+  tripForm.reset();
+  $('#tripDialogTitle').textContent = trip ? '記録を編集' : '旅の記録';
+  $('#tripPrefName').textContent = PREF[code].name;
+  const f = tripForm.elements;
+  f.date.value = trip ? trip.date : today();
+  f.level.value = String(trip ? trip.level : 3);
+  f.places.value = trip ? trip.places : '';
+  f.companions.value = trip ? trip.companions : '';
+  f.comment.value = trip ? trip.comment : '';
+  setStars(ratingInput, trip ? trip.rating : 0);
+  tripDialog.showModal();
+}
+
+tripForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const f = tripForm.elements;
+  const code = tripTarget.code;
+  const trip = normalizeTrip({
+    id: tripTarget.id,
+    date: f.date.value,
+    level: f.level.value,
+    places: f.places.value,
+    companions: f.companions.value,
+    rating: ratingInput.dataset.value,
+    comment: f.comment.value,
+  });
+  const r = rec(code);
+  const before = levelOf(code);
+  const idx = r.trips.findIndex((t) => t.id === trip.id);
+  if (idx >= 0) r.trips[idx] = trip; else r.trips.push(trip);
+  tripDialog.close();
+  render();
+  refreshPref();
+  if (!await persist(code)) return;
+  const after = levelOf(code);
+  toast(after > before ? `${PREF[code].name}が「${LEVELS[after]}」になりました（+${after - before}点）` : '記録を保存しました');
+});
+
+// ---------- バックアップ ----------
+async function offerFile(filename, content, type) {
+  if (!window.claude) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([content], { type }));
+    a.download = filename;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    return;
+  }
+  const downloads = await use('downloads');
+  if (!downloads) { toast('この画面ではファイルを保存できません'); return; }
+  try {
+    await downloads.save({ filename, data: content });
+    toast('保存しました');
+  } catch (e) {
+    if (e && e.code === 'declined') return;
+    toast(e && e.code === 'rate_limited' ? '少し待ってからもう一度お試しください' : 'ファイルを保存できませんでした');
+  }
+}
+
+$('#exportJsonBtn').addEventListener('click', () => {
+  offerFile(`touha-${today()}.json`, JSON.stringify({ version: 1, prefs: recs }, null, 2), 'application/json');
+});
+
+$('#exportCsvBtn').addEventListener('click', () => {
+  const header = ['コード', '都道府県', '地方', '段階', '点数', 'メモ', '行った日', 'その時の段階', '行った場所', '一緒に行った人', '楽しさ', '思い出'];
+  const rows = [];
+  for (const p of PREFS) {
+    const r = recs[p.code] || normalizeRec(null);
+    const lv = levelOf(p.code);
+    const base = [p.code, p.name, p.region, LEVELS[lv], lv, r.memo];
+    if (!r.trips.length) rows.push([...base, '', '', '', '', '', '']);
+    for (const t of sortedTrips(r)) rows.push([...base, t.date, LEVELS[t.level], t.places, t.companions, t.rating || '', t.comment]);
+  }
+  const cell = (c) => `"${String(c).replaceAll('"', '""')}"`;
+  offerFile(`touha-${today()}.csv`, '﻿' + [header, ...rows].map((r) => r.map(cell).join(',')).join('\r\n'), 'text/csv');
+});
+
+$('#importJsonBtn').addEventListener('click', () => $('#importFile').click());
+
+$('#importFile').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+  let next;
+  try {
+    const parsed = JSON.parse(await file.text());
+    if (!parsed || typeof parsed.prefs !== 'object') throw new Error();
+    next = fromPlain(parsed.prefs);
+  } catch {
+    toast('読み込めませんでした。このアプリで保存したJSONファイルを選んでください');
+    return;
+  }
+  $('#menuDialog').close();
+  const n = Object.values(next).filter((r) => r.base || r.trips.length).length;
+  if (!await askConfirm('バックアップから復元', `${n}都道府県の記録を読み込みます。\nいまの記録は置き換えられます。`, '置き換える')) return;
+  const codes = new Set([...Object.keys(recs), ...Object.keys(next)]);
+  recs = next;
+  render();
+  if (store.mode === 'cloud') {
+    toast('復元しています…');
+    for (const code of codes) if (!await persist(code)) return;
+  } else {
+    saveLocal();
+  }
+  toast('復元しました');
+});
+
+// ---------- イベント ----------
+document.addEventListener('click', (e) => {
+  const target = e.target.closest('.map .tile[data-code], .pill[data-code]');
+  if (target) openPref(target.dataset.code);
+});
+
+document.querySelectorAll('[data-filter]').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    filter = btn.dataset.filter;
+    document.querySelectorAll('[data-filter]').forEach((b) => b.setAttribute('aria-pressed', String(b === btn)));
+    render();
+  });
+});
+
+$('#menuBtn').addEventListener('click', () => {
+  $('#whereText').textContent = store.mode === 'cloud'
+    ? '保存先：claude.ai（あなた専用）。スマホでもパソコンでも、このページを開けば同じ記録が見られます。'
+    : '保存先：この端末のブラウザ内。ブラウザのデータを消すと失われるので、ときどきバックアップを保存してください。';
+  $('#menuDialog').showModal();
+});
+
+document.querySelectorAll('dialog').forEach((dialog) => {
+  dialog.addEventListener('click', (e) => {
+    if (e.target !== dialog) return;
+    const r = dialog.getBoundingClientRect();
+    if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) dialog.close();
+  });
+  dialog.querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', () => dialog.close()));
+});
+
+buildMap();
+setupStarsInput(ratingInput);
+initStore();
+</script>
+
+</body>
+</html>
